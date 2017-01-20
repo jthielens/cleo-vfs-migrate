@@ -424,7 +424,7 @@ sub audit_mailbox
 
     my $audit = $mailbox->{name};
     for my $mount (@{$mailbox->{mounts}}) {
-        $audit .= ",$mount->{path}";
+        $audit .= ",$mount->{path}" unless $mount->{path} eq $mailbox->{name};
     }
     return $audit;
 }
