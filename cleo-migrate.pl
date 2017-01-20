@@ -290,6 +290,13 @@ sub print_yaml
         push @$error, "Can't open YAML file for output $fn: $!";
         return undef;
     }
+    if ($#{$yaml->{chunks}} > 0 &&
+        $yaml->{chunks}->[0]->{type} eq 'prefix' &&
+        defined $yaml->{chunks}->[0]->{lines} &&
+        $yaml->{chunks}->[0]->{lines}->[-1] ne 'templates:') {
+        # the prefix does not end in templates:, but now there are some
+        push @{$yaml->{chunks}->[0]->{lines}}, 'templates:';
+    }
     for my $chunk (@{$yaml->{chunks}}, $yaml->{suffix}) {
         for my $line (@{$chunk->{lines}}) {
             print $fh $line, "\n";
