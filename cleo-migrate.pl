@@ -531,7 +531,8 @@ if (!(@error or @info)) {
 #--------------#
 if (!@error) {
     if (!$updates) {
-        push @info, "no records updated";
+        push @info, "no records updated"
+            if defined $adds or defined $opt->{delete};
     } else {
         if (!$opt->{out}) {
             $opt->{out} = ($opt->{home} || '.') . "/conf/vfs.yaml";
