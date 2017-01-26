@@ -500,7 +500,7 @@ my @info;
 my $yaml;
 my $adds;
 
-my $updates = 0;
+my %updates = ();
 
 #-----------------------------#
 # Command line and easy outs. #
@@ -545,6 +545,9 @@ if (!(@error or @info)) {
 # Process Operations #
 #--------------------#
 if (!(@error or @info)) {
+    #----------------#
+    # add operations #
+    #----------------#
     if (defined $adds) {
         my %index = map {$yaml->{chunks}->[$_]->{name} => $_}
                         (0..$#{$yaml->{chunks}});
@@ -568,7 +571,7 @@ if (!(@error or @info)) {
                 push @{$yaml->{chunks}}, format_mailbox($add);
                 $index{$id} = $#{$yaml->{chunks}};
             }
-            $updates++;
+            $updates{$id} = 1;
         }
         #----------------------------#
         # Audit referenced mailboxes #
@@ -583,11 +586,14 @@ if (!(@error or @info)) {
                     push @info, "implicitly adding  mailbox $id";
                     push @{$yaml->{chunks}}, format_mailbox(parse_add($id));
                     $index{$id} = $#{$yaml->{chunks}};
-                    $updates++;
+                    $updates{$id} = 1;
                 }
             }
         }
     }
+    #-------------------#
+    # delete operations #
+    #-------------------#
     if (defined $opt->{delete}) {
         my %deletes = map {($_ =~ s/,.*$//r) => 0} @{$opt->{delete}};
         # go backwards so we don't have to rework indices
@@ -595,16 +601,43 @@ if (!(@error or @info)) {
             my $name = $yaml->{chunks}->[$i]->{name};
             if (defined $deletes{$name}) {
                 $deletes{$name} = 1;
-                push @info, "deleting mailbox $name at position $i\n";
+                push @info, "deleting mailbox $name";
                 splice @{$yaml->{chunks}}, $i, 1;
-                $updates++;
+                $updates{$name} = 1;
             }
         }
         for my $test (keys %deletes) {
-            push @info, "mailbox $test not found, not deleted"
+            push @error, "mailbox $test not found, not deleted"
                 unless $deletes{$test};
         }
+        #----------------------------#
+        # Audit referenced mailboxes #
+        # (could be controlled by a  #
+        #  new option if needed)     #
+        #----------------------------#
+        for my $i (0..$#{$yaml->{chunks}}) {
+            my $chunk = $yaml->{chunks}->[$i];
+            next unless is_mailbox($chunk);
+            my @removes = ();
+            # go backwards to make splice easier
+            for my $j (reverse(0..$#{$chunk->{mounts}})) {
+                my $path = $chunk->{mounts}->[$j]->{path};
+                if (defined $deletes{$path}) {
+                    push @removes, $path;
+                    splice @{$chunk->{mounts}}, $j, 1;
+                }
+            }
+            if (@removes) {
+                push @info, "removing ".join(',',@removes)." from $chunk->{name}";
+                $yaml->{chunks}->[$i] =
+                    format_mailbox(parse_add(audit_mailbox($chunk)));
+                $updates{$chunk->{name}} = 1;
+            }
+        }
     }
+    #--------------------#
+    # listing operations #
+    #--------------------#
     if (defined $opt->{all}) {
         for my $chunk (@{$yaml->{chunks}}) {
             push @info, audit_mailbox($chunk) if is_mailbox($chunk);
@@ -633,7 +666,7 @@ if (!(@error or @info)) {
 # Print output #
 #--------------#
 if (!@error) {
-    if (!$updates) {
+    if (!%updates) {
         push @info, "no records updated"
             if defined $adds or defined $opt->{delete};
     } else {
@@ -648,6 +681,7 @@ if (!@error) {
             rename $opt->{out}, "$opt->{out}$bak";
         }
         print_yaml $yaml, $opt->{out}, \@error;
+        my $updates = scalar keys %updates;
         push @info, $updates." record".($updates==1?'':'s')." updated";
     }
 }
