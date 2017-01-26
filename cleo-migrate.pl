@@ -35,7 +35,8 @@ Note that -add and -delete may appear multiple times, once for each mapping
 to be added or delete in the form id,mailbox,mailbox.
 
 -list may appear multuple times or multiple ids may appear in a single
-argument in the form id,id,id (not id,mailbox,mailbox).
+argument in the form id,id,id (not id,mailbox,mailbox).  To list all mailboxes
+use -all.
 
 By default the vfs.yaml file is updated in place and the existing file is
 moved into a backup.  Use -out to specify an alternate output file for
@@ -437,6 +438,28 @@ sub format_mailbox
     return $mailbox;
 }
 
+sub is_mailbox
+    #--------------------------------------------------------------------------#
+    # usage: if (is_mailbox $mailbox) ...                                      #
+    #                                                                          #
+    # Examines a YAML chunk to see if it "looks" like a mapped mailbox:        #
+    #   - it is a 'template' chunk                                             #
+    #   - every mount has parent => 'mailbox'                                  #
+    #   - there is a mount for the mailbox id (chunk name) itself              #
+    #--------------------------------------------------------------------------#
+{
+    my $mailbox = shift;
+
+    return undef unless $mailbox->{type} eq 'template';
+    my $id = $mailbox->{name};
+    my $found = undef;
+    for my $mount (@{$mailbox->{mounts}}) {
+        return undef unless $mount->{parent} eq 'mailbox';
+        $found = 1 if $mount->{path} eq $id;
+    }
+    return $found;
+}
+
 sub audit_mailbox
     #--------------------------------------------------------------------------#
     # usage: $string = audit_mailbox $mailbox;                                 #
@@ -527,8 +550,18 @@ if (!(@error or @info)) {
     if (defined $adds) {
         my %index = map {$yaml->{chunks}->[$_]->{name} => $_}
                         (0..$#{$yaml->{chunks}});
+        ADD:
         for my $add (@$adds) {
             my $id = $add->{mailbox};
+            # check for invalid mappings #
+            for my $item (@{$add->{list}}) {
+                if (defined $index{$item} and
+                    !is_mailbox($yaml->{chunks}->[$index{$item}])) {
+                    push @error, "while adding $id, $item is not a mailbox";
+                    next ADD;
+                }
+            }
+            # add or update the mailbox #
             if (defined $index{$id}) {
                 push @info, "replacing mailbox $id";
                 $yaml->{chunks}->[$index{$id}] = format_mailbox($add);
@@ -545,13 +578,14 @@ if (!(@error or @info)) {
         #  new option if needed)     #
         #----------------------------#
         for my $chunk (@{$yaml->{chunks}}) {
-            next unless $chunk->{type} eq 'template';
+            next unless is_mailbox($chunk);
             for my $mount (@{$chunk->{mounts}}) {
                 my $id = $mount->{path};
                 if (!defined $index{$id}) {
                     push @info, "implicitly adding  mailbox $id";
                     push @{$yaml->{chunks}}, format_mailbox(parse_add($id));
                     $index{$id} = $#{$yaml->{chunks}};
+                    $updates++;
                 }
             }
         }
@@ -575,8 +609,7 @@ if (!(@error or @info)) {
     }
     if (defined $opt->{all}) {
         for my $chunk (@{$yaml->{chunks}}) {
-            next unless $chunk->{type} eq 'template';
-            push @info, audit_mailbox($chunk);
+            push @info, audit_mailbox($chunk) if is_mailbox($chunk);
         }
     }
     if (defined $opt->{list}) {
@@ -585,9 +618,13 @@ if (!(@error or @info)) {
         for my $ids (@{$opt->{list}}) {
             for my $id (split /,/, $ids) {
                 if (defined $index{$id}) {
-                    push @info, audit_mailbox($yaml->{chunks}->[$index{$id}]);
+                    if (is_mailbox($yaml->{chunks}->[$index{$id}])) {
+                        push @info, audit_mailbox($yaml->{chunks}->[$index{$id}]);
+                    } else {
+                        push @error, "mailbox $id does not look like a mailbox";
+                    }
                 } else {
-                    push @info, "mailbox $id not found, not listed";
+                    push @error, "mailbox $id not found, not listed";
                 }
             }
         }
