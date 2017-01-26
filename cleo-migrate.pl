@@ -213,6 +213,40 @@ sub Getopts
 sub load_yaml
     #--------------------------------------------------------------------------#
     # usage: $yaml = load_yaml \@error;                                        #
+    #                                                                          #
+    # Reads conf/vfs.yaml (from $opt->{home} if set) and informally parses it  #
+    # into chunks: a 'prefix', zero or more 'template' chunks, and possibly a  #
+    # 'suffix'.  Each chunk has a list of (chomped) lines.  'template' chunks  #
+    # are parsed, and so have a 'name' and a list of 'mounts' whose properties #
+    # are parsed (informally).                                                 #
+    #                                                                          #
+    # Note that the first element of the chunks array is always the prefix,    #
+    # but if a suffix is present it is held separately from the chunks.  This  #
+    # makes manipulation of the template chunks easier.                        #
+    #                                                                          #
+    # The result is a structure that looks like this:                          #
+    #   { chunks => [                                                          #
+    #       { type => 'prefix',                                                #
+    #         lines => [                                                       #
+    #           'debug: true',                                                 #
+    #           'properties:', ... ] },                                        #
+    #       { type => 'template',                                              #
+    #         lines => [                                                       #
+    #           'user1:', ... ],                                               #
+    #         name => 'user1',                                                 #
+    #         mounts => [                                                      #
+    #           { path => 'user1',                                             #
+    #             type => 'File',                                              #
+    #             parent => 'mailbox', ... },                                  #
+    #           { path => 'user2', ...}, ... ] },                              #
+    #       { type => 'template',                                              #
+    #         ...} ],                                                          #
+    #     suffix =>                                                            #
+    #       { type => 'suffix',                                                #
+    #         lines => [                                                       #
+    #           'connections:', ... ] }                                        #
+    #   }                                                                      #
+    #                                                                          #
     #--------------------------------------------------------------------------#
 {
     my $error = shift;
@@ -277,6 +311,10 @@ sub load_yaml
 sub print_yaml
     #--------------------------------------------------------------------------#
     # usage: if (!defined print_yaml($yaml, $fn, \@error)) {...}               #
+    #                                                                          #
+    # Prints the chunks from a parsed yaml structure in sequence, including    #
+    # the chunks array and suffix.  No special interpretation of 'template'    #
+    # chunks is done here, so the 'lines' array is simply printed.             #
     #--------------------------------------------------------------------------#
 {
     my $yaml = shift;
