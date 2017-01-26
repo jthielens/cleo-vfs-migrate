@@ -21,6 +21,7 @@ usage: $PROGRAM: [options] [file...]
 options: -add    id,mbx,... add a new mailbox mapping for id
          -delete id,mdx,... delete the mailbox mapping for id
          -list   id,...     list the mailbox mapping for ids
+         -all               list all the mailbox mappings
          -in     file,...   read CSV file for batch -add
          -home   path       Cleo home directory (defaults to .)
          -out    file       write updated YAML to file (instead of in place)
@@ -483,7 +484,7 @@ my $updates = 0;
 #-----------------------------#
 # Command line and easy outs. #
 #-----------------------------#
-my $SPEC = '{in}@{home}:{add}@{delete}@{list}@{out}:{err}:Vv{help}q';
+my $SPEC = '{in}@{home}:{add}@{delete}@{list}@{all}{out}:{err}:Vv{help}q';
 if (!defined ($opt=Getopts ($SPEC, \@error)) || $opt->{help}) {
     push @info, $USAGE;
 }
@@ -570,6 +571,12 @@ if (!(@error or @info)) {
         for my $test (keys %deletes) {
             push @info, "mailbox $test not found, not deleted"
                 unless $deletes{$test};
+        }
+    }
+    if (defined $opt->{all}) {
+        for my $chunk (@{$yaml->{chunks}}) {
+            next unless $chunk->{type} eq 'template';
+            push @info, audit_mailbox($chunk);
         }
     }
     if (defined $opt->{list}) {

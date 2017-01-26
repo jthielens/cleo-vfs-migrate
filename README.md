@@ -97,6 +97,7 @@ usage: cleo-migrate.pl: [options] [file...]
 options: -add    id,mbx,... add a new mailbox mapping for id
          -delete id,mdx,... delete the mailbox mapping for id
          -list   id,...     list the mailbox mapping for ids
+         -all               list all the mailbox mappings
          -in     file,...   read CSV file for batch -add
          -home   path       Cleo home directory (defaults to .)
          -out    file       write updated YAML to file (instead of in place)
@@ -110,7 +111,8 @@ Note that -add and -delete may appear multiple times, once for each mapping
 to be added or delete in the form id,mailbox,mailbox.
 
 -list may appear multuple times or multiple ids may appear in a single
-argument in the form id,id,id (not id,mailbox,mailbox).
+argument in the form id,id,id (not id,mailbox,mailbox).  To list all mailboxes
+use -all.
 
 By default the vfs.yaml file is updated in place and the existing file is
 moved into a backup.  Use -out to specify an alternate output file for
