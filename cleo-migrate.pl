@@ -5,6 +5,7 @@ use strict;
 my $VERSION = <<"";
 Version Description                        Date   Who
 ------- ---------------------------------- ------ ---
+1.0.1   cascading add and delete           170126 jbt
 1.0.0   original version                   170113 jbt
 
 my $V = (split (' ', (split ("\n", $VERSION, 4))[2], 2))[0];
