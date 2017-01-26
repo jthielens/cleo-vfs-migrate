@@ -419,7 +419,7 @@ sub format_mailbox
     my $mailbox = {type => 'template',
                    name => $descriptor->{mailbox}};
     my @lines = ("  $descriptor->{mailbox}:");
-    my @mounts = [];
+    my @mounts = ();
     for my $id ($descriptor->{mailbox}, @{$descriptor->{list}}) {
         push @lines, "  - path: $id",
                      "    type: File",
@@ -537,6 +537,22 @@ if (!(@error or @info)) {
                 $index{$id} = $#{$yaml->{chunks}};
             }
             $updates++;
+        }
+        #----------------------------#
+        # Audit referenced mailboxes #
+        # (could be controlled by a  #
+        #  new option if needed)     #
+        #----------------------------#
+        for my $chunk (@{$yaml->{chunks}}) {
+            next unless $chunk->{type} eq 'template';
+            for my $mount (@{$chunk->{mounts}}) {
+                my $id = $mount->{path};
+                if (!defined $index{$id}) {
+                    push @info, "implicitly adding  mailbox $id";
+                    push @{$yaml->{chunks}}, format_mailbox(parse_add($id));
+                    $index{$id} = $#{$yaml->{chunks}};
+                }
+            }
         }
     }
     if (defined $opt->{delete}) {

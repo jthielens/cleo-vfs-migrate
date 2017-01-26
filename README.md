@@ -70,6 +70,25 @@ templates:
 id,mailbox-A,mailbox-B
 ```
 
+The VFS works in conjunction with the OmniHost user configuration.  It is important that any user for whom a template is created using this tool also have a mailbox defined.  The recommended Home Directory configuration is:
+
+```
+vfs:/templates=%username%/%username%
+```
+
+This means that all users must have a template defined for them, including users who only have access to their own mailbox.  For this reason, after adding a user mapping, the resulting configuration is cross-referenced and any users added in the mailbox list for a user who do not also have an existing mailbox will have a default configuration implicitly added.  For example, after
+
+```
+cleo-migrate.pl -add user1,user2,user3
+```
+
+The configuration for `user1` is added (or updated) to include references to the mailboxes for `user2` and `user3` in addition to the default mapping for `user1` itself.  If configurations for `user2` and `user3` are not found in `vfs.yaml`, then templates will be automatically defined for them as if the following command had been issued:
+
+```
+cleo-migration.pl -add user1,user2,user3 -add user2 -add user3
+```
+
+
 ## Command Line ##
 
 ```
