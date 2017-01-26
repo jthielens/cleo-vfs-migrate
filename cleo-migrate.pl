@@ -368,7 +368,7 @@ sub parse_add
 
 sub csv_input
     #--------------------------------------------------------------------------#
-    # usage: $mailboxes = cmd_input (\@input, \@error, \@note);                #
+    # usage: $mailboxes = cmd_input (\@input, \@error);                        #
     #                                                                          #
     # Read input files from @input.  Push errors and notes onto @error/@note.  #
     # Returns an ARRAYREF of HASHREFs, one for each mailbox, as follows:       #
@@ -378,7 +378,6 @@ sub csv_input
 {
     my $input = shift @_;
     my $error = shift @_;
-    my $note  = shift @_;
 
     my $result = [];
     unshift (@$input, '-') unless @$input;
@@ -496,7 +495,6 @@ sub audit_mailbox
 #==============================================================================#
 
 my @error;
-my @note;
 my @info;
 
 my $yaml;
@@ -534,7 +532,7 @@ if (!(@error or @info)) {
         unshift @ARGV, @{$opt->{in}};
     }
     if (@ARGV) {
-        my $csv = csv_input \@ARGV, \@error, \@note;
+        my $csv = csv_input \@ARGV, \@error;
         if (defined $csv) {
             $adds = [] unless defined $adds;
             push @$adds, @$csv;
@@ -657,13 +655,11 @@ if (!@error) {
 #-------------------#
 # Print diagnostics #
 #-------------------#
-if (!$opt->{q} and (@error or @note or @info)) {
+if (!$opt->{q} and @error) {
     if (!($opt->{err} and open (ERR, ">$opt->{err}"))) {
         open (ERR, ">&STDERR");
     }
-
-    print ERR 'note: '. join ("\nnote: ",  @note)."\n"  if @note;
     print ERR 'error: '.join ("\nerror: ", @error)."\n" if @error;
-    print ERR           join ("\n",        @info)."\n"  if @info;
     close (ERR);
 }
+print join ("\n", @info)."\n"  if @info and !$opt->{q};;
